@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: authdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  auth-api:
+    build:
+      context: ./auth-api
+    ports:
+      - "8080:8080"
+    environment:
+      POSTGRES_URL: jdbc:postgresql://postgres:5432/authdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      JWT_SECRET: mySecretKeyThatIsAtLeast256BitsLongForHMACSHA256Algorithm
+      INTERNAL_TOKEN: my-secret-internal-token
+      DATA_API_URL: http://data-api:8081
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  data-api:
+    build:
+      context: ./data-api
+    ports:
+      - "8081:8081"
+    environment:
+      INTERNAL_TOKEN: my-secret-internal-token
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
